@@ -1,0 +1,15 @@
+#base
+.DS_Store
+.env
+.env.*
+.AppleDouble
+.icloud
+*.lnk
+
+#logs
+*.log
+
+#archives
+*.zip
+*.tar.gz
+*.rar
