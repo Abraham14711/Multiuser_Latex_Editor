@@ -1,0 +1,493 @@
+openapi: '3.0.3'
+info:
+  title: Multiuser_Latex_Editor
+  version: '1.1'
+  description: |
+    API для управления пользовательскими данными, документами, рендерами.
+    Поле `x-available-for` указывает, какие роли имеют доступ к эндпоинту:
+    - Guest: неаутентифицированные пользователи
+    - User: авторизованные пользователи
+    - Admin: администраторы системы
+    
+
+servers:
+  - url: 'http://localhost:8080'
+    description: 'Локальный сервер'
+
+tags:
+  - name: Render
+  - name: Auth
+  - name: Document
+
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: INTERNAL_OOPS_TOKEN
+
+  schemas:
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Internal error code for programmatic handling
+          enum:
+            - INVALID_INPUT
+            - AUTH_TOKEN_MISSING
+            - AUTH_TOKEN_INVALID
+            - ROLE_NOT_AUTHORIZED
+            - RESOURCE_NOT_FOUND
+          example: INVALID_INPUT
+        message:
+          type: string
+          description: Human-readable error description
+          example: Invalid input data provided.
+        details:
+          type: array
+          description: Additional details about the error (e.g., invalid fields)
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: Field that caused the error
+                example: title
+              message:
+                type: string
+                description: Specific error message for the field
+                example: Title must be between 1 and 255 characters.
+        timestamp:
+          type: string
+          format: date-time
+          description: Time when the error occurred
+          example: 2025-10-07T16:47:00Z
+        path:
+          type: string
+          description: Request path that caused the error
+          example:  /api/render
+
+    Document:
+      type: object
+      required:
+        - id
+        - title
+        - creation_date
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        creation_date:
+          type: string
+          example: 2025-10-07T16:47:00Z
+          
+    DocumentList:
+      type: object
+      required:
+        - documents
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Document'
+            
+    DocumentText:
+      type: object
+      required:
+        - id
+        - title
+        - creation_date
+        - text
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        creation_date:
+          type: string
+          example: 2025-10-07T16:47:00Z
+        text:
+          type: string
+          maxLength: 10485760
+          example: '<begin>The LaTeX document<end>'
+          
+    AuthData:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          minLength: 6
+          maxLength: 64
+          example: qwerty123
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: 'JWT Token'
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+        user:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 12
+            email:
+              type: string
+              example: user@example.com
+
+  responses:
+    200Ok:
+      description: Ok
+
+    204NoContent:
+      description: No content
+
+    400BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Invalid input data provided.
+            code: INVALID_INPUT
+            details:
+              - field: title
+                message: Title must be between 1 and 255 characters.
+            timestamp: 2025-10-07T16:47:00Z
+            path:  /api/auth
+
+    401Unauthorized:
+      description: No token provided
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: No token provided in cookie 'INTERNAL_OOPS_TOKEN'.
+            code: AUTH_TOKEN_MISSING
+            timestamp: 2025-10-07T16:47:00Z
+            path: /api/auth
+
+    403Forbidden:
+      description: Not enough rights
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: This action is restricted to Admin role.
+            code: ROLE_NOT_AUTHORIZED
+            timestamp: 2025-10-07T16:47:00Z
+            path: /api/document
+
+    404NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Document with that ID does not exist.
+            code: RESOURCE_NOT_FOUND
+            details:
+              resource: Document
+              id: 42
+            timestamp: 2025-10-07T16:47:00Z
+            path: /api/document
+
+    409Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Document already exists.
+            code: CONFLICT
+            details:
+              resource: /api/document/create
+              title: Test
+            timestamp: 2025-10-07T16:47:00Z
+            path: /api/document/create
+
+  requestBodies:
+    RenderPost:
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+              - title
+              - file
+            properties:
+              title:
+                type: string
+                description: file name
+                minLength: 1
+                maxLength: 255
+              file-input:
+                type: string
+                description: latex text file (.tex/.txt). Maximum size 10MB
+                maxLength: 10485760
+
+    DocumentCreatePost:
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+              - title
+            properties:
+              title:
+                type: string
+                description: file name
+                maxLength: 255
+    
+              
+paths:
+  /api/documents/{document_id}:
+    get:
+      tags:
+        - Document
+      summary: 'Get document by ID'
+      description: 'Retrieve a specific document belonging to the authenticated user.'
+      security:
+        - cookieAuth: []
+      x-available-for:
+        - User
+        - Admin
+      parameters:
+        - in: path
+          name: document_id
+          required: true
+          schema:
+            type: integer
+            example: 42
+          description: 'Document id needed'
+      responses:
+        200:
+          description: 'The document'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentText'
+        401:
+          $ref: '#/components/responses/401Unauthorized'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+        404:
+          $ref: '#/components/responses/404NotFound'
+    delete:
+      tags:
+        - Document
+      summary: 'Delete document by ID'
+      description: 'Deletes a document owned by the authenticated user'
+      security:
+        - cookieAuth: []
+      x-available-for:
+        - User
+        - Admin
+      parameters:
+        - in: path
+          name: document_id
+          required: true
+          schema:
+            type: integer
+            example: 12
+          description: 'Unique ID of the document to delete'
+      responses:
+        204:
+          $ref: '#/components/responses/204NoContent'
+        401:
+          $ref: '#/components/responses/401Unauthorized'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+        404:
+          $ref: '#/components/responses/404NotFound'
+
+  /api/document:
+    post:
+      tags:
+        - Document
+      summary: 'Create the document'
+      security:
+        - cookieAuth: [ ]
+      x-available-for:
+        - User
+        - Admin
+      requestBody:
+        $ref: '#/components/requestBodies/DocumentCreatePost'
+      responses:
+        200:
+          description: 'The document'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        401:
+          $ref: '#/components/responses/401Unauthorized'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+        404:
+          $ref: '#/components/responses/404NotFound'
+
+  /api/documents:
+    get:
+      tags:
+        - Document
+      summary: 'Get all users documents'
+      description: 'Get the saved documents with user cookie from server storage.'
+      security:
+        - cookieAuth: [ ]
+      x-available-for:
+        - User
+        - Admin
+      responses:
+        200:
+          description: 'List of documents'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DocumentList'
+              example:
+                - id: 1
+                  title: "Markovs chains"
+                  creation_date: "2025-10-14T20:00:00Z"
+                - id: 2
+                  title: "Boolean algebra"
+                  creation_date: "2025-10-14T20:00:00Z"
+        401:
+          $ref: '#/components/responses/401Unauthorized'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+
+  /api/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: 'Register a new user'
+      x-available-for:
+        - Guest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthData'
+      responses:
+        201:
+          description: 'User sucessfully registered'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        409:
+          $ref: '#/components/responses/409Conflict'
+
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: 'User login'
+      x-available-for:
+        - Guest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthData'
+      responses:
+        200:
+          description: 'Successful login'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        400:
+          $ref: '#/components/responses/400BadRequest'
+        401:
+          $ref: '#/components/responses/401Unauthorized'
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: 'User logout'
+      security:
+        - cookieAuth: []
+      responses:
+        204:
+          description: 'Successfully logged out'
+        401:
+          $ref: '#/components/responses/401Unauthorized'
+
+  /api/render/{document_id}:
+    post:
+      tags:
+        - Render
+      summary: 'Render LaTeX document to PDF'
+      description: 'Compile the specified LaTeX document for the authenticated user. The document content is sent to the rendering service via RPC. Only the user who triggered the render will see the updated result.'
+      security:
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: document_id
+          required: true
+          schema:
+            type: integer
+            example: 42
+          description: 'ID of the document to render'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                  description: 'Current LaTeX source text of the document'
+                  example: "\\documentclass{article}\\begin{document}Hello, world!\\end{document}"
+      responses:
+        200:
+          description: 'PDF successfully rendered and returned to the user'
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        400:
+          description: 'Compilation failed (e.g., invalid LaTeX syntax)'
+        401:
+          $ref: '#/components/responses/401Unauthorized'
+        403:
+          $ref: '#/components/responses/403Forbidden'
+          
+        404:
+          $ref: '#/components/responses/404NotFound'
+          
