@@ -13,3 +13,8 @@
 *.zip
 *.tar.gz
 *.rar
+
+#java
+/build
+/.gradle
+/.idea
