@@ -7,12 +7,10 @@ COPY ../backend/gradlew .
 COPY ../backend/gradle ./gradle
 COPY ../backend/build.gradle.kts .
 COPY ../backend/settings.gradle.kts .
-COPY ..backend/src ./src
+COPY ../backend/src ./src
 
 RUN chmod +x gradlew
 RUN ./gradlew dependencies --no-daemon
-
-COPY ..backend/src ./src
 
 RUN ./gradlew clean build -x test --no-daemon
 
