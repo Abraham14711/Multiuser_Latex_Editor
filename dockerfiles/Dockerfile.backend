@@ -1,0 +1,28 @@
+#build stage
+FROM eclipse-temurin:21-jdk AS build
+
+WORKDIR /app
+
+COPY ../backend/gradlew .
+COPY ../backend/gradle ./gradle
+COPY ../backend/build.gradle.kts .
+COPY ../backend/settings.gradle.kts .
+COPY ..backend/src ./src
+
+RUN chmod +x gradlew
+RUN ./gradlew dependencies --no-daemon
+
+COPY ..backend/src ./src
+
+RUN ./gradlew clean build -x test --no-daemon
+
+#runtime stage
+
+FROM eclipse-temurin:21-jre AS runtime
+
+WORKDIR /app
+EXPOSE 8080
+
+COPY --from=build /app/build/libs/*.jar app.jar
+
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

@@ -1,0 +1,53 @@
+services:
+  backend:
+    build:
+      context: backend
+      dockerfile: Dockerfile.backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+        restart: true
+      ports:
+        - ${SERVER_HTTPS_PORT}:${SERVER_HTTPS_PORT}
+      networks:
+        - spring-network
+      env_file:
+        - .env
+  
+  postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+      args:
+        - POSTGRES_USER=${POSTGRES_USER}
+        - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    networks:
+      - spring-network
+    shm_size: 128mb
+    ports:
+      - 5432:5432
+    volumes:
+      - pg-data:/var/lib/postgresql/data:Z
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: pg
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+
+volumes:
+  pg-data:
+
+networks:
+  spring-network:
+    driver: bridge
+
