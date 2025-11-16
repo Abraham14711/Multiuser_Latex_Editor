@@ -68,7 +68,7 @@ public class AuthenticationService {
         } catch (AuthenticationException e) {
             throw new BadCredentialsException("Bad credentials");
         }
-        
+
         Users user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("User not found"));
         log.info("User {} logged in successfully.", userAuthenticationDTO.getEmail());
