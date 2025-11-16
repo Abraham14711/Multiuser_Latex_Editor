@@ -74,6 +74,12 @@ public class AuthenticationService {
         log.info("User {} logged in successfully.", userAuthenticationDTO.getEmail());
         return generateCredentials(user);
     }
+
+    private void logout(RefreshTokenDTO refreshTokenDTO) {
+        refreshTokenService.removeToken(refreshTokenDTO.getToken());
+        log.info("Session end of user with token: {}", refreshTokenDTO.getToken());
+    }
+
     private boolean isEmail(String email) {
         return email.matches("^[\\w-.]+@([\\w-]+\\.)+[\\w-]{2,5}$");
     }

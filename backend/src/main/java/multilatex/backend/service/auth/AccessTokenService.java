@@ -18,7 +18,7 @@ public class AccessTokenService {
     @Value("${jwt.secretKey}")
     private String secretKey;
 
-    @Value("${auth.acessTokenValidaty}")
+    @Value("${auth.accessTokenValidity}")
     private Duration accessTokenValidity;
 
     private Algorithm algorithm;
